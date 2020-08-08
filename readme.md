@@ -23,12 +23,34 @@ nanoは割り込み入力に対応したポートが少ないため、Microを�
 |steering|位置が中央に戻るアナログスティック|ステアリング|
 |erase_last_N_records|3ステートボタンを割当|ONトリガで一定のレコードを消去
 |toggle_mode|トリガボタンを割当|手動/auto steering/local pilot の切り替え
-|emergency_stop|3ステートボタンを割当|非常停止
+|emergency_stop|2ステートボタンを割当|非常停止
 
 
 ## T16の入力などの設定の確認
 T16は立ち上げるたびに警告出すんですが、ちょっとうるさいです。
 音声を消したいところ。
+公式の日本語マニュアルはこちら。
+[T16 16-Channel Digital Proportional R/C System](https://drive.google.com/file/d/1er3QyV8o2tyAF2WM-N6u1yPzCu1GZfyi/view)
+[BETA FLIGHT 日本語化プロジェクト](https://drive.google.com/file/d/1IqqJVVcwfQFbQZFUbpczUuMlbivy2W39/view)
 
+こちらに詳細な解説をしていただけています。
+
+[Jumper T16（Plus/Proも）を初めて使う人のための解説　初期設定～バインドまで](https://appleroid.com/gadget/jumper-t16-setup-and-settle-issue/)
+
+チャンネルのINPUTS設定を参考に調整します。
+
+T16は左右の十字ボタンの名称が決まっていて、それをチャンネルに割り当てます。
+
+|名称|場所|定義した名称|チャンネル|説明|
+|---|---|---|---|---|
+|Rud|左/水平|-|-|
+|Ele|右/垂直|-|-|
+|Thr|左/垂直|Thr|CH1|スロットル|
+|Ail|右/水平|Steer|CH2|ステアリング|
+|SF|左上|emg|CH3|非常停止|
+|SH|右上|mode|CH4|モード切替|
+|SG|右上|eras|CH5|nレコード消去|
+
+左の水平、右の垂直は今回使用しません。
 
 
