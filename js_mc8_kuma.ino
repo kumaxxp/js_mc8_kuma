@@ -213,7 +213,6 @@ void loop() {
   slottle_value  = map(_aRCRevCh[1].GetOnPeriod(), 1012, 2008,MAX_VALUE16,MIN_VALUE16);
   mode_value  = map(_aRCRevCh[4].GetOnPeriod(), 1012, 2008,-10,10);
 
-#ifndef _DEBUG_
   Joystick.setXAxis(steering_value);
   Joystick.setRyAxis(slottle_value);
 
@@ -232,58 +231,41 @@ void loop() {
 
   int n;
   char byData;
-  
-  n = sonar.ping_cm();
-
-  if(n<50)
-  {
-    byData = 'E';    
-  }
-  else if(n < 100)
-  {
-    byData = 'S';    
-  }
-  else if(n < 150)
-  {
-    byData = 'M';    
-  }
-  else if(n < 400)
-  {
-    byData = 'F';
-  }
-
-  
-  Serial.print(byData);
-  sprintf(szData,"%06d",n);
-  
-  sprintf(szData,"CH0 %06d,%06d",steering_value,_aRCRevCh[0].GetOnPeriod());
-  sprintf(szData,"CH4 %06d,%06d",mode_value,_aRCRevCh[4].GetOnPeriod());
-  
+    
+  u8g.setFont(u8g_font_unifont);
   u8g.firstPage();  
   do {
-    u8g.setFont(u8g_font_unifont);
-    
-    sprintf(szData,"CH0 %06d,%05d",steering_value,_aRCRevCh[0].GetOnPeriod());
+
+    unsigned int ch1;
+    unsigned int ch2;
+    unsigned int ch3;
+    unsigned int ch4;
+    unsigned int ch5;
+    unsigned int ch6 = 0;
+
+    ch1 = _aRCRevCh[0].GetOnPeriod();
+    ch2 = _aRCRevCh[1].GetOnPeriod();
+    ch3 = _aRCRevCh[2].GetOnPeriod();
+    ch4 = _aRCRevCh[3].GetOnPeriod();
+    ch5 = _aRCRevCh[4].GetOnPeriod();
+
+    sprintf(szData,"CH1/2 %04u,%04u", ch1, ch2);
     u8g.drawStr( 0, 10, szData);
 
-    sprintf(szData,"CH1 %06d,%05d",slottle_value,_aRCRevCh[1].GetOnPeriod());
+    sprintf(szData,"CH3/4 %04u,%04u", ch3, ch4);
     u8g.drawStr( 0, 21, szData);
     
-    sprintf(szData,"CH4 %06d,%05d",mode_value,_aRCRevCh[4].GetOnPeriod());
+    sprintf(szData,"CH5/6 %04u,%04u", ch5, ch6);
     u8g.drawStr( 0, 32, szData);
+
+    delay(10);
     
   } while( u8g.nextPage() );
   
-#else
-  char szData[50];
-  sprintf(szData,"%d,%d",mode_value,_aRCRevCh[2].GetOnPeriod());
-  
-  Serial.println(szData);
-  delay(300);
-  Serial.println(slottle_value);
-#endif
+//  sprintf(szData,"%d,%d",mode_value,_aRCRevCh[2].GetOnPeriod());  
+//  Serial.println(szData);
 
-  delay(10);
+//  delay(10);
   
    
 }
