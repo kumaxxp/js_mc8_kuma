@@ -1,0 +1,5 @@
+{
+    "board": "arduino:avr:micro",
+    "port": "COM3",
+    "sketch": "js_mc8_kuma.ino"
+}
