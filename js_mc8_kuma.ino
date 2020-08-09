@@ -4,16 +4,13 @@
  *                         2019/09/27
  */
 
+#include <Arduino.h>
 #include <PinChangeInterrupt.h>
 #include <NewPing.h>
 #include <Joystick.h>
 
-// #define _DEBUG_
-
-#ifndef _DEBUG_
-  #include "U8glib.h"
-  U8GLIB_SSD1306_128X32 u8g(U8G_I2C_OPT_NONE);  // I2C / TWI 
-#endif
+#include "U8glib.h"
+U8GLIB_SSD1306_128X32 u8g(U8G_I2C_OPT_NONE);  // I2C / TWI 
 
 // https://github.com/NicoHood/PinChangeInterrupt/blob/master/Readme.md
 // Arduino Micro: 8, 9, 10, 11, 14 (MISO), 15 (SCK), 16 (MOSI)
@@ -30,6 +27,9 @@
 
 #define NUM_BUTTON      4
 #define BUTTON_MODE     0
+#define BUTTON_EMG      1
+#define BUTTON_ERASE    2
+
 #define R1              1
 #define L1              2  
 
@@ -39,9 +39,18 @@
 
 #define MIN_VALUE16          -32767
 #define MAX_VALUE16           32767
+#define MIN_PWM               1012
+#define MAX_PWM               2008
 #define ERROR_RANGE           16
 
 #define LED    13
+
+enum T_KeyType
+{
+  ANALOG_IN = 0,
+  KEY2STATE_IN = 1,
+  KEY3STATE_IN = 2,
+};
 
 const byte channel_pin[] = {8, 9, 10, 11,14,15,16};
 
@@ -79,13 +88,63 @@ class RCRecieverChannel
     volatile unsigned long m_ed_time;
     volatile unsigned long m_ulOnPeriod;
 
+    long m_constain_value;
+    long m_value;
+
+    T_KeyType m_keytype;
+
     public:
     void Init(byte byChannel);
     void OnTrigger();
     void InitBaseValue();
     void OutputTime();
+    void CalcPWM();
+    void SetKeyType(T_KeyType keytype){ m_keytype = keytype;};
     unsigned long GetOnPeriod(){  return m_ulOnPeriod;};
+    long GetValue(){ return m_value;};
+    long GetConstainValue(){return m_constain_value;};
 
+};
+
+void RCRecieverChannel::CalcPWM()
+{
+  long tmp;
+
+  switch(m_keytype)
+  {
+    case ANALOG_IN:
+      m_constain_value = m_ulOnPeriod;
+      if(m_ulOnPeriod >= MAX_PWM) m_constain_value = MAX_PWM;
+      if(m_ulOnPeriod <= MIN_PWM) m_constain_value = MIN_PWM;
+
+      m_value = map(m_constain_value, MIN_PWM, MAX_PWM,MAX_VALUE16,MIN_VALUE16);
+      break;
+
+    case KEY2STATE_IN:
+      m_constain_value = m_ulOnPeriod;
+      if(m_ulOnPeriod >= MAX_PWM) m_constain_value = MAX_PWM;
+      if(m_ulOnPeriod <= MIN_PWM) m_constain_value = MIN_PWM;
+      
+      //  1/0で数値を取りたいが、PWMが検出失敗したときに中間の1500を検出すると、ONを検出して暴走するので、
+      //  3ステートで検出し、中間値を検出したら0にセットする。
+      tmp = map(m_constain_value, MIN_PWM, MAX_PWM, 2, 0);
+
+      switch(tmp)
+      {
+        case 2: m_value = 1; break;
+        case 1: m_value = 0; break;
+        case 0: m_value = 0; break;
+      }
+      break;
+
+    case KEY3STATE_IN:
+      m_constain_value = m_ulOnPeriod;
+      if(m_ulOnPeriod >= MAX_PWM) m_constain_value = MAX_PWM;
+      if(m_ulOnPeriod <= MIN_PWM) m_constain_value = MIN_PWM;
+
+      m_value = map(m_constain_value, MIN_PWM, MAX_PWM, 2, 0);
+      break;
+  }
 };
 
 void RCRecieverChannel::Init(byte byChannel)
@@ -148,6 +207,15 @@ void setup()
     _aRCRevCh[4].Init(channel_pin[4]);
     _aRCRevCh[5].Init(channel_pin[5]);
     _aRCRevCh[6].Init(channel_pin[6]);
+
+    _aRCRevCh[0].SetKeyType(ANALOG_IN);   //スロットル
+    _aRCRevCh[1].SetKeyType(ANALOG_IN);   //ステアリン
+    _aRCRevCh[2].SetKeyType(KEY2STATE_IN);   //非常停止
+    _aRCRevCh[3].SetKeyType(KEY2STATE_IN);   //モード切替
+    _aRCRevCh[4].SetKeyType(KEY3STATE_IN);   //ｎレコード消去
+    _aRCRevCh[5].SetKeyType(KEY3STATE_IN);   //予備
+    _aRCRevCh[6].SetKeyType(KEY3STATE_IN);   //予備
+
     
     //  ピンを入力モードにし、ピンの変化にコールバック関数を設定する
     pinMode(channel_pin[0], INPUT);    attachPinChangeInterrupt(digitalPinToPinChangeInterrupt(channel_pin[0]), OnTrigger_00, CHANGE);    
@@ -161,7 +229,6 @@ void setup()
     // setup pin mode
     pinMode(LED, OUTPUT);
 
-#ifndef _DEBUG_
     // Initialize Joystick
     Joystick.begin();
     Joystick.setXAxisRange(MIN_VALUE16, MAX_VALUE16);
@@ -183,10 +250,6 @@ void setup()
 
     Serial.begin(115200); // Open serial monitor at 115200 baud to see ping results.
     
-#else
-    Serial.begin(115200);
-#endif
-
     for(int i=0; i<10; i++)
     {
         delay(200);
@@ -208,64 +271,89 @@ void loop() {
   int steering_value;
   int slottle_value;
   int mode_value;
+  int emg_value;
+  int erase_value;
 
-  steering_value = map(_aRCRevCh[0].GetOnPeriod(), 1012, 2008,MAX_VALUE16,MIN_VALUE16);
-  slottle_value  = map(_aRCRevCh[1].GetOnPeriod(), 1012, 2008,MAX_VALUE16,MIN_VALUE16);
-  mode_value  = map(_aRCRevCh[4].GetOnPeriod(), 1012, 2008,-10,10);
+  for(int i=0; i < NUM_CHANNEL; i++)
+  {
+    _aRCRevCh[i].CalcPWM();
+  }
+
+  slottle_value  = _aRCRevCh[0].GetValue();
+  steering_value = _aRCRevCh[1].GetValue();
+  emg_value      = _aRCRevCh[2].GetValue();
+  mode_value     = _aRCRevCh[3].GetValue();
+  erase_value    = _aRCRevCh[4].GetValue();
 
   Joystick.setXAxis(steering_value);
   Joystick.setRyAxis(slottle_value);
+  //  非常停止
+  if(emg_value==1)
+  {
+//    Joystick.pressButton(BUTTON_EMG);
+  }else{
+//    Joystick.releaseButton(BUTTON_EMG);    
+  }
 
-  if(mode_value<0)
+  //  モード切替
+  if(mode_value==1)
   {
     Joystick.pressButton(BUTTON_MODE);
   }else{
     Joystick.releaseButton(BUTTON_MODE);    
+  }
+
+  //  nレコード消去
+  if(erase_value==1)
+  {
+//    Joystick.pressButton(BUTTON_ERASE);
+  }else{
+//    Joystick.releaseButton(BUTTON_ERASE);    
   }
   
 //  Joystick.pressButton(BUTTON_MODE);
 //  Joystick.pressButton(L1);
 //  Joystick.pressButton(R1);
   
-  char szData[50];
+  char szData1[50];
+  char szData2[50];
+  char szData3[50];
 
   int n;
   char byData;
     
+
+  long ch1;
+  long ch2;
+  long ch3;
+  long ch4;
+  long ch5;
+  long ch6 = 0;
+
+  //USBに出力するデータを表示する
+  ch1 = _aRCRevCh[0].GetValue();
+  ch2 = _aRCRevCh[1].GetValue();
+  ch3 = _aRCRevCh[2].GetValue();
+  ch4 = _aRCRevCh[3].GetValue();
+  ch5 = _aRCRevCh[4].GetValue();
+
+  #if 1
+  sprintf(szData1,"CH1 %04d", ch1 );
+  sprintf(szData2,"CH2 %04d", ch2 );
+  sprintf(szData3,"CH3 %04d", ch3 );
+  #else
+  sprintf(szData1,"convalue %04u", _aRCRevCh[4].GetConstainValue() );
+  sprintf(szData2,"value %04d", _aRCRevCh[4].GetValue() );  
+  sprintf(szData3,"period %04u", _aRCRevCh[4].GetOnPeriod());
+  #endif
+
+
   u8g.setFont(u8g_font_unifont);
   u8g.firstPage();  
   do {
-
-    unsigned int ch1;
-    unsigned int ch2;
-    unsigned int ch3;
-    unsigned int ch4;
-    unsigned int ch5;
-    unsigned int ch6 = 0;
-
-    ch1 = _aRCRevCh[0].GetOnPeriod();
-    ch2 = _aRCRevCh[1].GetOnPeriod();
-    ch3 = _aRCRevCh[2].GetOnPeriod();
-    ch4 = _aRCRevCh[3].GetOnPeriod();
-    ch5 = _aRCRevCh[4].GetOnPeriod();
-
-    sprintf(szData,"CH1/2 %04u,%04u", ch1, ch2);
-    u8g.drawStr( 0, 10, szData);
-
-    sprintf(szData,"CH3/4 %04u,%04u", ch3, ch4);
-    u8g.drawStr( 0, 21, szData);
-    
-    sprintf(szData,"CH5/6 %04u,%04u", ch5, ch6);
-    u8g.drawStr( 0, 32, szData);
-
-    delay(10);
+    u8g.drawStr( 0, 10, szData1);
+    u8g.drawStr( 0, 21, szData2);
+    u8g.drawStr( 0, 32, szData3);
     
   } while( u8g.nextPage() );
-  
-//  sprintf(szData,"%d,%d",mode_value,_aRCRevCh[2].GetOnPeriod());  
-//  Serial.println(szData);
-
-//  delay(10);
-  
-   
 }
