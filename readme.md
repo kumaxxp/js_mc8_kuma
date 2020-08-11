@@ -14,6 +14,9 @@ nanoは割り込み入力に対応したポートが少ないため、Microを�
 近藤科学のページに基板のレイアウトが載っているので、そちらを参考にするほうが早そうです。
 一定のニーズがあると思うので、変換基板を作成したいところです。
 
+こちらのページを参考にソフトを作成します。
+https://qiita.com/arigadget/items/51bf75e19cd395ac9b2f
+
 # ソフトウェア
 私が使用するT16の入力は、16個あるのですが、受信機は8chです。ArduinoMicroの割り込み対応のI/O入力が8chなのと、DonkeyCar程度ならそれほど大量の入力は必要ないです。
 
@@ -27,6 +30,11 @@ nanoは割り込み入力に対応したポートが少ないため、Microを�
 |erase_last_N_records|3ステートボタンを割当|ONトリガで一定のレコードを消去
 |toggle_mode|トリガボタンを割当|手動/auto steering/local pilot の切り替え
 |emergency_stop|2ステートボタンを割当|非常停止
+
+## DonkeyCarのJOYSTIC設定をカスタムする
+
+[Donkey Carのプロポ対応その３（Donkey car設定編）](https://qiita.com/arigadget/items/9396451d6837bbbed79d)
+こちらを参考に、DonkeyCar側のプログラムを書き換えます。
 
 
 ## T16の入力などの設定の確認

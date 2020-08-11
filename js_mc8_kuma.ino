@@ -54,6 +54,7 @@ enum T_KeyType
 
 const byte channel_pin[] = {8, 9, 10, 11,14,15,16};
 
+
 Joystick_ Joystick = Joystick_(
   0x03,                    // reportid
   JOYSTICK_TYPE_JOYSTICK,  // type
@@ -67,6 +68,7 @@ Joystick_ Joystick = Joystick_(
   false,                   // brake enable
   false                    // steering enable
 );
+
 
 #define PIN 4
 #define MAX_DISTANCE 400
@@ -134,6 +136,7 @@ void RCRecieverChannel::CalcPWM()
         case 2: m_value = 1; break;
         case 1: m_value = 0; break;
         case 0: m_value = 0; break;
+        default:m_value = 0; break;
       }
       break;
 
@@ -230,7 +233,7 @@ void setup()
     pinMode(LED, OUTPUT);
 
     // Initialize Joystick
-    Joystick.begin();
+    Joystick.begin(false);
     Joystick.setXAxisRange(MIN_VALUE16, MAX_VALUE16);
     Joystick.setRyAxisRange(MIN_VALUE16, MAX_VALUE16);
 
@@ -290,30 +293,37 @@ void loop() {
   //  非常停止
   if(emg_value==1)
   {
-//    Joystick.pressButton(BUTTON_EMG);
+    Joystick.pressButton(BUTTON_EMG);
   }else{
-//    Joystick.releaseButton(BUTTON_EMG);    
+    Joystick.releaseButton(BUTTON_EMG);    
   }
 
   //  モード切替
-  if(mode_value==1)
+  if(mode_value==0)
   {
-    Joystick.pressButton(BUTTON_MODE);
+//    if(mode_value != nBack)
+    {
+      Joystick.pressButton(BUTTON_MODE);
+    }
   }else{
-    Joystick.releaseButton(BUTTON_MODE);    
+//    if(mode_value != nBack)
+    {
+      Joystick.releaseButton(BUTTON_MODE);
+    }
   }
 
   //  nレコード消去
   if(erase_value==1)
   {
-//    Joystick.pressButton(BUTTON_ERASE);
+    Joystick.pressButton(BUTTON_ERASE);
   }else{
-//    Joystick.releaseButton(BUTTON_ERASE);    
+    Joystick.releaseButton(BUTTON_ERASE);    
   }
   
 //  Joystick.pressButton(BUTTON_MODE);
 //  Joystick.pressButton(L1);
 //  Joystick.pressButton(R1);
+  Joystick.sendState();
   
   char szData1[50];
   char szData2[50];
@@ -347,13 +357,20 @@ void loop() {
   sprintf(szData3,"period %04u", _aRCRevCh[4].GetOnPeriod());
   #endif
 
+  static int _nCnt = 0;
 
-  u8g.setFont(u8g_font_unifont);
-  u8g.firstPage();  
-  do {
-    u8g.drawStr( 0, 10, szData1);
-    u8g.drawStr( 0, 21, szData2);
-    u8g.drawStr( 0, 32, szData3);
-    
-  } while( u8g.nextPage() );
+  if(_nCnt > 200)
+  {
+    _nCnt = 0;
+    u8g.setFont(u8g_font_unifont);
+    u8g.firstPage();  
+    do {
+      u8g.drawStr( 0, 10, szData1);
+      u8g.drawStr( 0, 21, szData2);
+      u8g.drawStr( 0, 32, szData3);
+      
+    } while( u8g.nextPage() );
+  }else{
+    _nCnt ++;
+  }
 }
